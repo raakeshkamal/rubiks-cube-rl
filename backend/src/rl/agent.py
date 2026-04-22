@@ -210,7 +210,7 @@ class DeepCubeAgent:
         path_obj.parent.mkdir(parents=True, exist_ok=True)
 
         usage = shutil.disk_usage(path_obj.parent)
-        if usage.free < 500 * 1024 * 1024:  # 500 MB headroom
+        if usage.free < 100 * 1024 * 1024:  # 100 MB headroom
             raise RuntimeError(
                 f"Insufficient disk space to save checkpoint. "
                 f"Free: {usage.free / 1e9:.2f} GB on {path_obj.parent}"
