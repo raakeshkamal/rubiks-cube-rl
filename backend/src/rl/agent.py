@@ -88,6 +88,8 @@ class DeepCubeAgent:
         targets: np.ndarray,
         batch_size: int,
         num_iterations: int,
+        on_progress: Optional[Callable[[int, float, int], None]] = None,
+        progress_every: int = 100,
     ) -> List[float]:
         inputs = self.env.state_to_nnet_input(states)[0]
         inputs_t = torch.as_tensor(inputs, device=self.device)
@@ -95,7 +97,7 @@ class DeepCubeAgent:
 
         loss_accum: List[torch.Tensor] = []
         self.current_model.train()
-        for _ in range(num_iterations):
+        for iteration in range(1, num_iterations + 1):
             idxs = np.random.choice(len(states), size=min(batch_size, len(states)), replace=False)
             batch_x = inputs_t[idxs]
             batch_y = targets_t[idxs]
@@ -124,6 +126,10 @@ class DeepCubeAgent:
 
             loss_accum.append(loss.detach())
             self.state.train_steps += 1
+
+            if on_progress and iteration % progress_every == 0:
+                avg_loss_so_far = float(torch.stack(loss_accum[-progress_every:]).mean())
+                on_progress(iteration, avg_loss_so_far, num_iterations)
 
         losses = torch.stack(loss_accum).cpu().numpy().tolist() if loss_accum else []
         heuristic_batch = int(os.environ.get("HEURISTIC_BATCH_SIZE", "32768"))

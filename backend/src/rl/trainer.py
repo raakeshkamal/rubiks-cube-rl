@@ -119,13 +119,25 @@ class Trainer:
             1,
             int(np.ceil(len(states) / self.config.batch_size)) * self.config.train_epochs_per_update,
         )
+        def _on_progress(iteration: int, avg_loss: float, total: int):
+            if on_adi_progress:
+                on_adi_progress({
+                    "adi_step": iteration,
+                    "adi_steps_total": total,
+                    "avg_loss": round(avg_loss, 6),
+                    "scramble_depth": self.config.scramble_depth,
+                })
+
         losses = await loop.run_in_executor(
             None,
-            self.agent.train_on_states,
-            states,
-            targets,
-            self.config.batch_size,
-            num_train_iterations,
+            lambda: self.agent.train_on_states(
+                states,
+                targets,
+                self.config.batch_size,
+                num_train_iterations,
+                on_progress=_on_progress,
+                progress_every=100,
+            ),
         )
         self.metrics.adi_steps += len(losses)
         self.metrics.total_steps = self.agent.state.train_steps
