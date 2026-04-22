@@ -155,7 +155,10 @@ class DeepCubeAgent:
             max_expansions=max_expansions,
         )
         if self.device.type == "cuda":
-            torch.cuda.empty_cache()
+            allocated = torch.cuda.memory_allocated(self.device)
+            total = torch.cuda.get_device_properties(self.device).total_memory
+            if allocated / total > 0.8:
+                torch.cuda.empty_cache()
         return result
 
     def save_artifacts(self) -> None:

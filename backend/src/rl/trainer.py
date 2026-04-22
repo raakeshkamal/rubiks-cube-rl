@@ -26,7 +26,7 @@ class TrainingConfig:
     back_max: int = 20
     max_steps_per_episode: int = 30
     max_search_nodes: int = 20_000
-    eval_batch_size: int = 32
+    eval_batch_size: int = 512
     search_weight: float = 0.8
     artifact_root: str = "saved_models/cube3"
     max_epochs: int = 10_000
