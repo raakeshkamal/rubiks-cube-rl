@@ -156,8 +156,10 @@ class Trainer:
             )
 
         avg_loss = float(np.mean(losses))
+        # Always sync target network so Bellman backups improve every epoch.
+        # Only advance curriculum (harder scrambles) when converged.
+        self.agent.promote_target()
         if avg_loss < self.config.loss_thresh:
-            self.agent.promote_target()
             if self.config.scramble_depth < self.config.max_scramble_depth:
                 self.config.scramble_depth += 1
 
