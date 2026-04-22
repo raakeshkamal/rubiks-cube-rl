@@ -54,7 +54,6 @@ class Node:
 
 def make_heuristic_fn(model: torch.nn.Module, device: torch.device, env: Cube3, batch_size: int = 32768) -> Callable[[List[Cube3State]], np.ndarray]:
     model.eval()
-    use_cuda = device.type == "cuda"
 
     def heuristic(states: List[Cube3State]) -> np.ndarray:
         if not states:
@@ -65,7 +64,7 @@ def make_heuristic_fn(model: torch.nn.Module, device: torch.device, env: Cube3, 
         with torch.inference_mode():
             for start in range(0, len(state_input), batch_size):
                 batch_np = state_input[start:start + batch_size]
-                batch = torch.as_tensor(batch_np, device=device, non_blocking=use_cuda)
+                batch = torch.as_tensor(batch_np, device=device)
                 values = model(batch).squeeze(-1)
                 values = torch.clamp(values, min=0.0)
                 outputs.append(values.cpu().numpy())
