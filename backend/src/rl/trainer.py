@@ -121,12 +121,14 @@ class Trainer:
         )
         def _on_progress(iteration: int, avg_loss: float, total: int):
             if on_adi_progress:
-                on_adi_progress({
-                    "adi_step": iteration,
-                    "adi_steps_total": total,
-                    "avg_loss": round(avg_loss, 6),
-                    "scramble_depth": self.config.scramble_depth,
-                })
+                def _notify():
+                    on_adi_progress({
+                        "adi_step": iteration,
+                        "adi_steps_total": total,
+                        "avg_loss": round(avg_loss, 6),
+                        "scramble_depth": self.config.scramble_depth,
+                    })
+                loop.call_soon_threadsafe(_notify)
 
         losses = await loop.run_in_executor(
             None,
