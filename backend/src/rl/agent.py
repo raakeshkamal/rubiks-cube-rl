@@ -65,20 +65,44 @@ class DeepCubeAgent:
         self.heuristic_target = make_heuristic_fn(self.target_model, self.device, self.env, batch_size=heuristic_batch)
 
     def bellman_backup(self, states: List[Cube3State], use_target: bool = True) -> np.ndarray:
-        heuristic_fn = self.heuristic_target if use_target else self.heuristic_current
-        children_by_state, transition_costs = self.env.expand(states)
-        flat_children = [child for children in children_by_state for child in children]
-        heuristics = heuristic_fn(flat_children)
-        heuristics[self.env.is_solved(flat_children)] = 0.0
+        model = self.target_model if use_target else self.current_model
+        model.eval()
 
-        tc_stack = np.stack(transition_costs)
-        heuristics_mat = heuristics.reshape(len(states), -1)
+        states_np = np.stack([state.colors for state in states], axis=0)
+        num_states = len(states)
+        num_moves = self.env.get_num_moves()
+
+        all_next_np = []
+        all_tc = []
+        for move_idx in range(num_moves):
+            next_np, tc = self.env._move_np(states_np, move_idx)
+            all_next_np.append(next_np)
+            all_tc.extend(tc)
+
+        flat_np = np.concatenate(all_next_np, axis=0)
+        inputs = (flat_np // 9).astype(np.float32)
+        inputs_t = torch.as_tensor(inputs, device=self.device)
+
+        heuristics_list = []
+        batch_size = int(os.environ.get("HEURISTIC_BATCH_SIZE", "32768"))
+        with torch.inference_mode():
+            for start in range(0, len(inputs_t), batch_size):
+                batch = inputs_t[start:start + batch_size]
+                values = model(batch).squeeze(-1)
+                values = torch.clamp(values, min=0.0)
+                heuristics_list.append(values.cpu().numpy())
+
+        heuristics = np.concatenate(heuristics_list)
+
+        is_solved_flat = np.all(flat_np == self.env.goal_colors, axis=1)
+        heuristics[is_solved_flat] = 0.0
+
+        heuristics_mat = heuristics.reshape(num_states, num_moves)
+        tc_stack = np.array(all_tc, dtype=np.float32).reshape(num_states, num_moves)
         backups = np.min(heuristics_mat + tc_stack, axis=1)
 
-        backups[self.env.is_solved(states)] = 0.0
-
-        if self.device.type == "cuda":
-            torch.cuda.empty_cache()
+        is_solved_input = np.all(states_np == self.env.goal_colors, axis=1)
+        backups[is_solved_input] = 0.0
 
         return backups
 
@@ -134,9 +158,6 @@ class DeepCubeAgent:
         losses = torch.stack(loss_accum).cpu().numpy().tolist() if loss_accum else []
         heuristic_batch = int(os.environ.get("HEURISTIC_BATCH_SIZE", "32768"))
         self.heuristic_current = make_heuristic_fn(self.current_model, self.device, self.env, batch_size=heuristic_batch)
-
-        if self.device.type == "cuda":
-            torch.cuda.empty_cache()
 
         return losses
 
