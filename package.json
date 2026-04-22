@@ -1,0 +1,13 @@
+{
+  "name": "rubiks-cube-rl",
+  "private": true,
+  "workspaces": ["api", "frontend"],
+  "scripts": {
+    "dev": "bun --filter 'api' dev & bun --filter 'frontend' dev",
+    "dev:api": "bun --filter 'api' dev",
+    "dev:frontend": "bun --filter 'frontend' dev",
+    "dev:training": "cd backend && uv run python src/main.py",
+    "train:cloud": "cd backend && uv run python src/main.py",
+    "start:cloud": "bash scripts/start_cloud.sh"
+  }
+}

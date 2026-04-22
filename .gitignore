@@ -1,0 +1,25 @@
+# Dependencies
+node_modules/
+.venv/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Checkpoints & models
+saved_models/
+checkpoints/
+*.pt
+*.pth
+
+# OS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log
