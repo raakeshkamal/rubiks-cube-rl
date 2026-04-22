@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 
 import numpy as np
 import torch
-from torch.cuda.amp import GradScaler, autocast
+from torch.amp import GradScaler, autocast
 
 from cube.simulator import Cube3, Cube3State
 from .network import get_device, maybe_compile
@@ -58,7 +58,7 @@ class DeepCubeAgent:
         self.state = AgentState()
 
         self.use_amp = os.environ.get("USE_AMP", "0") == "1" and self.device.type == "cuda"
-        self.scaler = GradScaler() if self.use_amp else None
+        self.scaler = GradScaler('cuda') if self.use_amp else None
 
         heuristic_batch = int(os.environ.get("HEURISTIC_BATCH_SIZE", "32768"))
         self.heuristic_current = make_heuristic_fn(self.current_model, self.device, self.env, batch_size=heuristic_batch)
@@ -101,7 +101,7 @@ class DeepCubeAgent:
             batch_y = targets_t[idxs]
 
             if self.use_amp:
-                with autocast():
+                with autocast('cuda'):
                     preds = self.current_model(batch_x)
                     loss = torch.nn.functional.mse_loss(preds, batch_y)
                 self.optimizer.zero_grad()
