@@ -20,9 +20,9 @@ class TrainingConfig:
     hidden_size: int = 5000
     learning_rate: float = 1e-3
     batch_size: int = 10000
-    states_per_update: int = 262_144
-    train_epochs_per_update: int = 100
-    loss_thresh: float = 0.05
+    states_per_update: int = 524_288
+    train_epochs_per_update: int = 200
+    loss_thresh: float = 0.10
     back_max: int = 20
     max_steps_per_episode: int = 30
     max_search_nodes: int = 20_000
@@ -39,7 +39,7 @@ class TrainingConfig:
     adi_states_per_step: int = 512
     adi_steps_per_epoch: int = 8
     target_update_freq: int = 1
-    loss_threshold: float = 0.05
+    loss_threshold: float = 0.10
 
     def __post_init__(self) -> None:
         if self.states_per_update <= 0:
