@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import json
 import time
 from dataclasses import asdict, dataclass
 from pathlib import Path
@@ -13,16 +14,16 @@ from .agent import DeepCubeAgent
 
 @dataclass
 class TrainingConfig:
-    scramble_depth: int = 1
+    scramble_depth: int = 20
     max_scramble_depth: int = 20
     episodes_per_epoch: int = 32
     checkpoint_freq: int = 5
     hidden_size: int = 5000
     learning_rate: float = 1e-3
     batch_size: int = 10000
-    states_per_update: int = 524_288
-    train_epochs_per_update: int = 200
-    loss_thresh: float = 0.10
+    states_per_update: int = 1_000_000
+    train_epochs_per_update: int = 100
+    loss_thresh: float = 0.06
     back_max: int = 20
     max_steps_per_episode: int = 30
     max_search_nodes: int = 20_000
@@ -39,7 +40,7 @@ class TrainingConfig:
     adi_states_per_step: int = 512
     adi_steps_per_epoch: int = 8
     target_update_freq: int = 1
-    loss_threshold: float = 0.10
+    loss_threshold: float = 0.06
 
     def __post_init__(self) -> None:
         if self.states_per_update <= 0:
@@ -63,7 +64,7 @@ class TrainingMetrics:
     avg_loss: float = 0.0
     epoch_time: float = 0.0
     episodes_per_sec: float = 0.0
-    current_scramble_depth: int = 1
+    current_scramble_depth: int = 20
     device: str = "cpu"
     adi_steps: int = 0
     lr: float = 1e-3
@@ -91,6 +92,8 @@ class Trainer:
         self.is_running = False
         self.should_stop = False
         self.stop_reason: Optional[str] = None
+        self._metrics_log_path = Path(self.config.artifact_root) / "metrics.jsonl"
+        self._metrics_log_path.parent.mkdir(parents=True, exist_ok=True)
 
     async def run_epoch(
         self,
@@ -235,12 +238,34 @@ class Trainer:
                 on_checkpoint(str(checkpoint_path))
             self._cleanup_old_checkpoints()
 
+        # Append metrics to JSONL log
+        self._log_metrics(solved_count, len(episode_results))
+
         if self.metrics.epoch >= self.config.max_epochs:
             self.should_stop = True
             self.stop_reason = f"Max epochs ({self.config.max_epochs}) reached"
 
         self.is_running = False
         return self.metrics
+
+    def _log_metrics(self, solved_count: int, total_eval_episodes: int) -> None:
+        record = {
+            "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+            "epoch": self.metrics.epoch,
+            "scramble_depth": self.metrics.current_scramble_depth,
+            "avg_loss": self.metrics.avg_loss,
+            "solve_rate": round(self.metrics.solve_rate, 4),
+            "solved_count": solved_count,
+            "eval_episodes": total_eval_episodes,
+            "epoch_time": round(self.metrics.epoch_time, 2),
+            "episodes_per_sec": round(self.metrics.episodes_per_sec, 2),
+            "adi_steps": self.metrics.adi_steps,
+            "total_steps": self.metrics.total_steps,
+            "lr": round(self.metrics.lr, 6),
+            "device": self.metrics.device,
+        }
+        with open(self._metrics_log_path, "a", encoding="utf-8") as f:
+            f.write(json.dumps(record) + "\n")
 
     def get_metrics_dict(self) -> dict:
         return asdict(self.metrics)
